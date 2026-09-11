@@ -1,0 +1,16 @@
+# ESKIRGAN (2026-08-24). Bu snippet endi ishlatilmaydi.
+#
+# Haqiqiy konfiguratsiya `api.qobilbek.dev.conf` ichida, `/nsfw/` blokidan keyin
+# yashaydi va xizmatni `https://api.qobilbek.dev/mathocr/` da ochadi.
+# Nusxasi (o'zgartirsangiz IKKALASINI ham yangilang):
+#
+#     location = /mathocr { return 301 /mathocr/; }
+#
+#     location ^~ /mathocr/ {
+#         proxy_pass http://127.0.0.1:8731/;
+#         include proxy_api_params.conf;
+#         client_max_body_size 4m;
+#         limit_req zone=req_perip burst=60 nodelay;
+#     }
+#
+# `^~` va timeout dublikati haqidagi tuzoqlar README.md da yozilgan.

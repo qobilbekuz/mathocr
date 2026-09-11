@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+*.log
+
+# Namuna to'plash (StateDirectory) — serverda yig'iladi, repoga kirmaydi
+/var/lib/mathocr/
+collected/

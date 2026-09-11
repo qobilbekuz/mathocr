@@ -1,0 +1,67 @@
+[Unit]
+Description=Math captcha recognition service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/mathocr
+Environment="PYTHONUNBUFFERED=1"
+
+# --- ISHLASH UCHUN KRITIK: BLAS'ni bir oqimga tushirish ---
+# 20 yadroli serverda OpenBLAS arzimas matritsa-vektor ko'paytmasi uchun ham
+# 20 ta oqim ochadi; oqimlarni sinxronlash foydali ishdan qimmat tushadi va
+# server band bo'lganda so'rov 2 ms o'rniga 60-180 ms cho'ziladi (o'lchangan).
+# Bu o'zgaruvchilar numpy IMPORT QILINISHIDAN OLDIN qo'yilishi shart —
+# shuning uchun kodda emas, aynan shu yerda. cv2 tomonini app/__init__.py
+# dagi setNumThreads(1) hal qiladi.
+# Parallellik --workers darajasida qoladi.
+Environment="OPENBLAS_NUM_THREADS=1"
+Environment="OMP_NUM_THREADS=1"
+Environment="MKL_NUM_THREADS=1"
+Environment="NUMEXPR_NUM_THREADS=1"
+# Ishonch chegarasini qayta kompilyatsiyasiz sozlash:
+# Environment="MATHOCR_MIN_CONFIDENCE=0.85"
+
+# API kalitlari — FAQAT sha256 dayjesti (kalitning o'zi emas), vergul bilan.
+# Yangi kalit: python3 tools/apikey.py
+# BO'SH bo'lsa hamma so'rov 401 oladi (ataylab fail-closed).
+# --- Namuna to'plash (korpus o'stirish, ÷ bo'shlig'ini to'ldirish uchun) ---
+# StateDirectory: ProtectSystem=strict ostida yagona to'g'ri yozish yo'li —
+# systemd /var/lib/mathocr ni o'zi yaratadi va faqat shuni yozuvchi qiladi.
+# O'chirish uchun: MATHOCR_COLLECT=0
+Environment="MATHOCR_COLLECT=1"
+Environment="MATHOCR_COLLECT_DIR=/var/lib/mathocr/traffic"
+
+Environment="MATHOCR_API_KEYS_SHA256=b2a77739e90b9a0f0e1a511171ba8f6a84369e1d9c3584dfbb7d3e5ce9c1d2b4"
+# --forwarded-allow-ips: X-Forwarded-For ni FAQAT nginx (127.0.0.1) qo'yganda
+# hisobga oladi — aks holda mijoz o'zi soxta IP yuborib loglarni chalg'itardi.
+# --root-path /mathocr: nginx prefiksi olib tashlangani uchun Swagger o'z
+# manzillarini (/openapi.json, "Try it out") to'g'ri yasashi shart.
+ExecStart=/usr/bin/python3 -m uvicorn app.api:app \
+    --host 127.0.0.1 \
+    --port 8731 \
+    --workers 2 \
+    --proxy-headers \
+    --forwarded-allow-ips=127.0.0.1 \
+    --no-server-header \
+    --root-path /mathocr
+Restart=always
+RestartSec=3
+
+# --- xavfsizlik cheklovlari ---
+# Xizmat faqat rasmni o'qib, JSON qaytaradi; unga tashqi tarmoq ham,
+# yozish huquqi ham kerak emas.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/root/mathocr
+# Yozish faqat shu yerga: /var/lib/mathocr (systemd yaratadi va tozalaydi).
+StateDirectory=mathocr
+RestrictAddressFamilies=AF_INET AF_UNIX
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
